@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+  <head>
+    <meta charset="utf-8">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js"></script>
+   
+    	<title>D3: Linked charts</title>
+	
+    <style type="text/css">
+
+
+
+		body {
+			background-color: gray;
+		}
+
+		#buttonContainer {
+			margin-bottom: 10px;
+		}
+
+		button {
+			padding: 15px;
+		}
+
+		svg {
+			display: block;
+			margin-bottom: 10px;
+			background-color: white;
+		}
+
+  	svg text {
+			font-family: sans-serif;
+			font-size: 16px;
+			fill: black;
+			font-style: bold;
+ 	}
+      
+      g.bar {
+      fill: #000775;
+      } 
+      
+		g.bar text {
+			font-family: sans-serif;
+			font-size: 9px;
+			fill: black;
+			font-style: bold;
+			text-anchor: middle;
+			opacity: 0;
+		}
+
+		g.bar.highlight text {
+			opacity: 1;
+		}
+
+		g.bar.highlight rect {
+			fill: #8ec1ff;
+		}
+
+		.axis path,
+		.axis line {
+			fill: none;
+			stroke: black;
+			shape-rendering: crispEdges;
+		}
+		
+		.axis text {
+			font-family: sans-serif;
+			font-size: 11px;
+		}
+
+
+
+	</style>
+</head>
+<body>
+
+	<div id="buttonContainer">
+		<button id="sort">Ordenar por Flash</button>
+    <button id="sortDescending">Ordenar por NVRAM</button>
+    <button id="sortRank">Sort Rank</button>
+  </div>
+	
+	<script type="text/javascript">
+
+
+///////Size of every bar @padq
+		//Width, height, padding
+		var w = 3000;
+		var h = 350;
+		var padding = 50; 
+		
+		//Sample data
+		var dataset = [
+{"name":"SW_BOSA","flash1size":32.514048,"nvram_size":65.536},
+{"name":"SW_CIUDAD_BOLIVAR","flash1size":6.838272,"nvram_size":524.288},
+{"name":"SW_KENNEDY_3CER_PISO","flash1size":6.838272,"nvram_size":524.288},
+{"name":"SW_KENNEDY_4TO_PISO","flash1size":32.514048,"nvram_size":65.536},
+{"name":"SW_MARTIRES","flash1size":32.514048,"nvram_size":65.536},
+{"name":"SW_SAN_CRISTOBAL","flash1size":57.671680,"nvram_size":524.288},
+{"name":"SW_SUBA_PONTEVEDRA_PISO1","flash1size":15.998976,"nvram_size":524.288},
+{"name":"SW_SUBA_PONTEVEDRA_PISO3","flash1size":15.998976,"nvram_size":524.288},
+{"name":"SW_USME","flash1size":32.514048,"nvram_size":65.536},
+{"name":"SW_FONTIBON","flash1size":32.514048,"nvram_size":65.536},
+{"name":"SW_USAQUEN","flash1size":32.514048,"nvram_size":65.536},
+{"name":"C4_SCJ-Core","flash1size":0,"nvram_size":0},
+{"name":"C4_SGD-1","flash1size":122.185728,"nvram_size":524.288},
+{"name":"C4_SGD-2","flash1size":122.185728,"nvram_size":524.288},
+{"name":"C4_SGD-3","flash1size":122.185728,"nvram_size":524.288},
+{"name":"C4_SOTANO","flash1size":0,"nvram_size":0},
+{"name":"CDISTRITAL_CC1_CORE","flash1size":6.838272,"nvram_size":524.288},
+{"name":"CDISTRITAL_CC1_SW1","flash1size":6.838272,"nvram_size":524.288},
+{"name":"CarcelPiso1","flash1size":15.998976,"nvram_size":393.216},
+{"name":"UPJ-CC1-SW1","flash1size":15.998976,"nvram_size":524.288},
+{"name":"UPJ-CC2-SW1","flash1size":7.741440,"nvram_size":32.768},
+{"name":"CALLE26_PISO_6","flash1size":122.185728,"nvram_size":524.288},
+{"name":"CALLE26_PISO_6C","flash1size":6.838272,"nvram_size":524.288},
+{"name":"CALLE26_PISO_13","flash1size":122.185728,"nvram_size":524.288},
+{"name":"CALLE26_PISO_14PISO","flash1size":122.185728,"nvram_size":524.288},
+{"name":"CALLE26_CORE_VSS_PISO14","flash1size":0,"nvram_size":0},
+{"name":"CALLE26_SwPiso16","flash1size":122.185728,"nvram_size":524.288}];
+
+		//Configure x and y scale functions
+		var xScale = d3.scale.ordinal()
+						.domain(d3.range(dataset.length))
+						.rangeRoundBands([ padding, w - padding ], 0.1);
+
+		//Now using two different y scales for two different charts
+		var flash1sizeScale = d3.scale.linear()
+						.domain([ 0, d3.max(dataset, function(d) {
+							return d.flash1size;
+						}) ])
+						.rangeRound([ h - padding, padding ]);
+
+		var nvram_sizeScale = d3.scale.linear()
+						.domain([ 0, d3.max(dataset, function(d) {
+							return d.nvram_size;
+						}) ])
+						.rangeRound([ h - padding, padding ]);
+
+		//Now using two different y axes
+		var flash1sizeAxis = d3.svg.axis()
+						.scale(flash1sizeScale)
+						.orient("left")
+						.ticks(5)
+						.outerTickSize(0);  // remove outer tick mark on axis
+	
+		var nvram_sizeAxis = d3.svg.axis()
+						.scale(nvram_sizeScale)
+						.orient("left")
+						.ticks(5)
+						.outerTickSize(0);
+
+
+
+		//
+		// Make the first chart (flash1size data)////////////////////////////////////////////////////////////////////////////////////
+		//
+
+		//Create SVG element
+		var svg = d3.select("body")
+					.append("svg")
+					.attr("id", "flash1sizeChart")
+					.attr("width", w)
+					.attr("height", h);
+
+		//Create groups
+		var groups = svg.selectAll("g")
+						.data(dataset)
+						.enter()
+						.append("g")
+						.attr("class", "bar")
+						.attr("transform", function(d, i) {
+					  		return "translate(" + xScale(i) + ",0)";
+						});
+
+		//Add bar to each group
+		var rects = groups.append("rect")
+						  .attr("x", 0)
+						  .attr("y", function(d) {
+						  		return h - padding;
+						  })
+						  .attr("width", xScale.rangeBand())
+						  .attr("height", 0)
+		//				  .attr("fill", "SteelBlue")
+    ;
+
+		//Add label to each group
+		groups.append("text")
+			.attr("x", xScale.rangeBand() / 2)
+			.attr("y", function(d) {
+				return flash1sizeScale(d.flash1size) - 12;
+			})
+			.text(function(d) {
+				return d.name + ": " + d.flash1size;
+			})
+    
+    //Add second piece of text - remove css opacity directly
+    // height is related to height-padding of svg
+     groups.append("text")
+			.attr("x", xScale.rangeBand() / 2)
+			.attr("y", [h - padding/1.6])
+			.text(function(d) {
+				return d.name;
+			})
+     .style("opacity", 1)
+
+		//Transition rects into place
+		rects.transition()
+			.delay(function(d, i) {
+				return i * 100;
+			})
+			.duration(1500)
+			.attr("y", function(d) {
+				return flash1sizeScale(d.flash1size);
+			})
+			.attr("height", function(d) {
+				return h - padding - flash1sizeScale(d.flash1size);
+			});
+
+		//Create y axis
+		svg.append("g")
+			.attr("class", "axis")
+			.attr("transform", "translate(" + padding + ",0)")
+			.attr("opacity", 0)
+			.call(flash1sizeAxis)
+			.transition()
+			.delay(2000)
+			.duration(1500)
+			.attr("opacity", 1.0);
+
+    
+// Title for chart 1
+    svg.append("text")
+        .attr("x", padding/2)             
+        .attr("y", padding/2.5)
+        .text("FLASH_SIZE (Megabytes)")
+        .style("text-anchor", "start");
+
+    
+
+		//
+		// Make the second chart (nvram_size data)/////////////////////////////////////////////////////////////////////////////////////
+		//
+
+		//Create SVG element
+		svg = d3.select("body")
+					.append("svg")
+					.attr("id", "nvram_sizeChart")
+					.attr("width", w)
+					.attr("height", h);
+
+		//Create groups
+		groups = svg.selectAll("g")
+						.data(dataset)
+						.enter()
+						.append("g")
+						.attr("class", "bar")
+						.attr("transform", function(d, i) {
+					  		return "translate(" + xScale(i) + ",0)";
+						});
+
+		//Add bar to each group
+		rects = groups.append("rect")
+						  .attr("x", 0)
+						  .attr("y", function(d) {
+						  		return h - padding;
+						  })
+						  .attr("width", xScale.rangeBand())
+						  .attr("height", 0)
+		//				  .attr("fill", "SteelBlue")
+    ;
+
+		//Add label to each group
+		groups.append("text")
+			.attr("x", xScale.rangeBand() / 2)
+			.attr("y", function(d) {
+				return nvram_sizeScale(d.nvram_size) - 10;
+			})
+			.text(function(d) {
+				return d.name + ": " + d.nvram_size;
+			})
+
+    //Add second piece of text - remove css opacity directly
+    // height is related to height-padding of svg
+     groups.append("text")
+			.attr("x", xScale.rangeBand() / 2)
+			.attr("y", [h - padding/1.6])
+			.text(function(d) {
+				return d.name;
+			})
+     .style("opacity", 1)
+
+    //Transition rects into place
+		rects.transition()
+			.delay(function(d, i) {
+				return i * 100;
+			})
+			.duration(1500)
+			.attr("y", function(d) {
+				return nvram_sizeScale(d.nvram_size);
+			})
+			.attr("height", function(d) {
+				return h - padding - nvram_sizeScale(d.nvram_size);
+			});
+
+		//Create y axis
+		svg.append("g")
+			.attr("class", "axis")
+			.attr("transform", "translate(" + padding + ",0)")
+			.attr("opacity", 0)
+			.call(nvram_sizeAxis)
+			.transition()
+			.delay(2000)
+			.duration(1500)
+			.attr("opacity", 1.0);
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+		//New functionality for interaction for ALL groups
+		//in BOTH charts
+		d3.selectAll("g.bar")
+			.on("mouseover", function(d) {
+
+				//Instead of d3.select(this), now we want to
+				//select ALL groups that match the same 
+				//criteria as this one, i.e. this group
+				//and the corresponding one in the other chart.
+				//
+				//We begin by selecting all groups, then
+				//filtering to exclude those that don't match.
+				//
+				//We'll use each person's "name" as a unique
+				//identifier. (With a real-world data set, you'd
+				//probably use an ID number here.)
+
+				var thisName = d.name;
+
+				d3.selectAll("g.bar")
+					.filter(function(d) {
+						//If the name from the original group on
+						//which mouseover was triggered matches the
+						//name on the group we're evaluating right now…
+						if (thisName == d.name) {
+							return true;  //…then it's a match
+						}
+					})
+					.classed("highlight", true);
+
+			})
+			.on("mouseout", function() {
+
+				//We could be selective, using the same filtering
+				//criteria above, or, for simplicity, just 
+				//de-highlight all the groups.
+
+				d3.selectAll("g.bar")
+					.classed("highlight", false);
+
+			})
+
+  // Title for chart 2
+    svg.append("text")
+        .attr("x", padding/2)             
+        .attr("y", padding/2.5)
+        .text("NVRAM_SIZE (KiloBytes)")
+        .style("text-anchor", "start");
+
+    
+    
+
+//Sort Ascending button - keep both graphs but link.
+		d3.select("#sort")
+			.on("click", function() {
+
+				//Need to reselect all groups in each chart
+				d3.selectAll("#flash1sizeChart g.bar").sort(function(a, b) {
+  						return d3.descending(a.flash1size, b.flash1size);
+					})
+					.transition()
+					.delay(function(d, i) {
+						return i * 50;
+					})
+					.duration(1000)
+					.attr("transform", function(d, i) {
+				  		return "translate(" + xScale(i) + ",0)";
+					});
+
+				d3.selectAll("#nvram_sizeChart g.bar").sort(function(a, b) {
+  						return d3.descending(a.flash1size, b.flash1size);
+					})
+					.transition()
+					.delay(function(d, i) {
+						return i * 50;
+					})
+					.duration(1000)
+					.attr("transform", function(d, i) {
+				  		return "translate(" + xScale(i) + ",0)";
+					});  
+			})
+    ;
+
+    
+/// Descending Button - sort both graphs but keep linked    
+d3.select("#sortDescending")
+			.on("click", function() {
+
+				//Need to reselect all groups in each chart
+				d3.selectAll("#flash1sizeChart g.bar").sort(function(a, b) {
+  						return d3.descending(a.nvram_size, b.nvram_size);
+					})
+					.transition()
+					.delay(function(d, i) {
+						return i * 50;
+					})
+					.duration(1000)
+					.attr("transform", function(d, i) {
+				  		return "translate(" + xScale(i) + ",0)";
+					});
+
+				d3.selectAll("#nvram_sizeChart g.bar").sort(function(a, b) {
+  						return d3.descending(a.nvram_size, b.nvram_size);
+					})
+					.transition()
+					.delay(function(d, i) {
+						return i * 50;
+					})
+					.duration(1000)
+					.attr("transform", function(d, i) {
+				  		return "translate(" + xScale(i) + ",0)";
+					});  
+			});
+ 
+ /// Descending Button - sort both graphs but keep linked    
+d3.select("#sortRank")
+			.on("click", function() {
+
+				//Need to reselect all groups in each chart
+				d3.selectAll("#flash1sizeChart g.bar").sort(function(a, b) {
+  						return d3.ascending(a.name, b.name);
+					})
+					.transition()
+					.delay(function(d, i) {
+						return i * 50;
+					})
+					.duration(1000)
+					.attr("transform", function(d, i) {
+				  		return "translate(" + xScale(i) + ",0)";
+					});
+
+				d3.selectAll("#nvram_sizeChart g.bar").sort(function(a, b) {
+  						return d3.ascending(a.name, b.name);
+					})
+					.transition()
+					.delay(function(d, i) {
+						return i * 50;
+					})
+					.duration(1000)
+					.attr("transform", function(d, i) {
+				  		return "translate(" + xScale(i) + ",0)";
+					});  
+			});
+
+    
+
+
+	</script>
+</body>
+</html>
