@@ -76,7 +76,7 @@
 	<div id="buttonContainer">
 		<button id="sort">Ordenar por Flash</button>
     <button id="sortDescending">Ordenar por NVRAM</button>
-    <button id="sortRank">Ordenar por Categorías</button>
+    <button id="sortRank">Ordenar por similares</button>
   </div>
 	
 	<script type="text/javascript">
@@ -338,9 +338,9 @@
 					.filter(function(d) {
 						//If the name from the original group on
 						//which mouseover was triggered matches the
-						//name on the group we're evaluating right now…
+						//name on the group we're evaluating right nowÂ…
 						if (thisName == d.name) {
-							return true;  //…then it's a match
+							return true;  //Â…then it's a match
 						}
 					})
 					.classed("highlight", true);
